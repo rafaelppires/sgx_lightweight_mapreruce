@@ -1,0 +1,23 @@
+/* enclave_mapreduce.edl - Top EDL file. */
+
+enclave {
+    /* 
+     *  [in]: copy the string buffer to App outside.
+     *  [string]: specifies 'str' is a NULL terminated buffer.
+     */
+    untrusted {
+        void ocall_print([in, string] const char *str);
+        void ocall_outputdata( [in, size=lh] const char *h, size_t lh,
+                               [in, size=lp] const char *p, size_t lp, size_t luamem );
+        void ocall_outputerror( [in,string] const char *str );
+    };
+
+    trusted {
+        public void ecall_init( [in,string] const char *id, char e );
+        public void ecall_luaclose();
+        public void ecall_inputdata([in, size=len] const char *b, size_t len);
+        public void ecall_inputcode([in, string] const char *buf,
+                                    [in, string] const char *fnm);
+    };
+};
+
