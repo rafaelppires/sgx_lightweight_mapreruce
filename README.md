@@ -27,7 +27,7 @@ However, the Lightweight MapReduce framework has a protocol of its own.
 Refer to the paper to get more information.
 
 
-re info](https://arxiv.org/abs/1705.05684)
+[More info](https://arxiv.org/abs/1705.05684)
 
 **Source code:**
 ```
