@@ -15,7 +15,7 @@
 #include <zhelpers.hpp>
 #include <fstream>
 #include <argp.h>
-#include <crypto.h>
+#include <sgx_cryptoall.h>
 #include <communication_zmq.h>
 #include <mrprotocol.h>
 

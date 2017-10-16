@@ -1,3 +1,4 @@
+#define ENABLE_SGX
 #include <worker_protocol.h>
 
 extern "C" {
@@ -15,7 +16,11 @@ void WorkerProtocol::initialsub() {
     std::string header = subheader(id_,kv);
     size_t sz = std::min(header.size(),sizeof(buff));
     if( encrypt_ ) {
-        encrypt( header.c_str(), buff, sz );
+        uint8_t key[16], iv[16];
+        memset(key,0,16); memset(iv,0,16);
+        key[0] = 'a'; key[15] = '5';
+        iv[0] = 'x'; iv[15]= '?';
+        encrypt_aes128( (const uint8_t*)header.c_str(), (uint8_t*)buff, sz, key, iv );
         ocall_outputdata( buff, sz, "", 0, luamem_used );
     } else
         ocall_outputdata( header.c_str(), header.size(), "", 0, luamem_used );
@@ -76,9 +81,13 @@ void WorkerProtocol::actual_output( char *buff, size_t len,
     hdsz = std::min(hfsz,header.size()),
     plsz = std::min(hfsz,payload.size());
     if( encrypt_ ) {
+        uint8_t key[16], iv[16];
+        memset(key,0,16); memset(iv,0,16);
+        key[0] = 'a'; key[15] = '5';
+        iv[0] = 'x'; iv[15]= '?';
         //printf("<%s><%s>\n", header.c_str(), payload.c_str());
-        encrypt( header.c_str(),  buff,      hdsz );
-        encrypt( payload.c_str(), buff+hfsz, plsz );
+        encrypt_aes128( (const uint8_t*)header.c_str(), (uint8_t*)buff,      hdsz,key,iv );
+        encrypt_aes128( (const uint8_t*)payload.c_str(), (uint8_t*)buff+hfsz, plsz, key, iv );
         ocall_outputdata( buff, hdsz, buff+hfsz, plsz, luamem_used );
     } else {
         ocall_outputdata( header.c_str(), header.size(),

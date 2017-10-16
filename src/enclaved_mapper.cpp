@@ -1,5 +1,6 @@
 #include <enclave_mapreduce.h>
 #include <enclave_mapreduce_t.h>
+#define ENABLE_SGX
 #include <enclaved_mapper.h>
 #include <stdio.h>
 #include <string>

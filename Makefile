@@ -18,7 +18,7 @@ LUADIR       := ../enclaved_lua/lua-sgx
 SCBRSRCDIR   := ../scbr/src
 SGXCOMMONDIR := ../sgx_common
 SCBROBJS     := $(addprefix $(OBJDIR)/, message.o communication_zmq.o)
-SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist.o sgx_initenclave.o crypto.o utils.o)
+SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist.o sgx_initenclave.o sgx_cryptoall.o utils.o)
 
 MRENCLAVE    := enclave_mapreduce
 TRUSTEDOBJS  := $(addprefix $(OBJDIR)/, $(MRENCLAVE)_t.o $(MRENCLAVE).o enclaved_mapper.o enclaved_reducer.o worker_protocol.o)
@@ -78,7 +78,7 @@ Trusted_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib \
 
 all: $(TARGETS) $(BINDIR)/$(MRENCLAVE).signed.so
 
-client : $(addprefix $(OBJDIR)/, client_protocol.o crypto.o utils.o)
+client : $(addprefix $(OBJDIR)/, client_protocol.o sgx_cryptoall.o utils.o)
 worker : $(SGXCOMOBJS) $(OBJDIR)/$(MRENCLAVE)_u.o $(OBJDIR)/ocalls.o
 $(TARGETS): $(SCBROBJS) 
 $(TARGETS): % : $(OBJDIR)/%.o | $(BINDIR)

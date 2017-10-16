@@ -1,7 +1,7 @@
 #include <client_protocol.h>
 #include <iostream>
 #include <sstream>
-#include <crypto.h>
+#include <sgx_cryptoall.h>
 
 //------------------------------------------------------------------------------
 void ClientProtocol::init() {

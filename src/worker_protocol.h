@@ -2,7 +2,7 @@
 #define _WORKER_PROTOCOL_H_
 
 #include <enclaved_common.h>
-#include <sgx_utiles.h>
+#include <sgx_cryptoall.h>
 #include <enclave_mapreduce_t.h>
 
 class WorkerProtocol {

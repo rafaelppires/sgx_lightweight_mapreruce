@@ -6,9 +6,10 @@
 #include <file_mock.h>
 #include <mrprotocol.h>
 #include <string>
+#define ENABLE_SGX
 #include <enclaved_mapper.h>
 #include <enclaved_reducer.h>
-#include <sgx_utiles.h>
+#include <sgx_cryptoall.h>
 
 //------------------------------------------------------------------------------
 /* 
@@ -169,8 +170,12 @@ void ecall_inputdata( const char *buff, size_t len ) {
 
     const char *data = recovered;
     recovered[len] = 0;
-    if( is_cipher(buff,len) ) {
-        decrypt(buff,recovered,len);
+    if( is_cipher((const uint8_t*)buff,len) ) {
+        uint8_t key[16], iv[16];
+        memset(key,0,16); memset(iv,0,16);
+        key[0] = 'a'; key[15] = '5';
+        iv[0] = 'x'; iv[15]= '?';
+        decrypt_aes128((const uint8_t*)buff,(uint8_t*)recovered,len,key,iv);
         data = recovered;
     } else {
         memcpy(recovered,buff,len);
@@ -190,7 +195,7 @@ void ecall_inputdata( const char *buff, size_t len ) {
                   "Err msg format %lu %d %d", len, data[0], data[1]);
         ocall_outputerror(buff);
         goto getout;
-    } else if( data == recovered && is_cipher(data,len) ) {
+    } else if( data == recovered && is_cipher((const uint8_t*)data,len) ) {
         ocall_outputerror("Decryption still gives cipher");
         goto getout;
     }

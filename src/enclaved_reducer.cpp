@@ -1,3 +1,4 @@
+#define ENABLE_SGX
 #include <enclaved_reducer.h>
 #include <enclave_mapreduce_t.h>
 #include <set>
