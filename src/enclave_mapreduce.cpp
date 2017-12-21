@@ -175,7 +175,7 @@ void ecall_inputdata( const char *buff, size_t len ) {
         memset(key,0,16); memset(iv,0,16);
         key[0] = 'a'; key[15] = '5';
         iv[0] = 'x'; iv[15]= '?';
-        decrypt_aes128((const uint8_t*)buff,(uint8_t*)recovered,len,key,iv);
+        decrypt_aes(AES128,(const uint8_t*)buff,(uint8_t*)recovered,len,key,iv);
         data = recovered;
     } else {
         memcpy(recovered,buff,len);

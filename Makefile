@@ -18,10 +18,10 @@ LUADIR       := ../enclaved_lua/lua-sgx
 SCBRSRCDIR   := ../scbr/src
 SGXCOMMONDIR := ../sgx_common
 SCBROBJS     := $(addprefix $(OBJDIR)/, message.o communication_zmq.o)
-SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist.o sgx_initenclave.o sgx_cryptoall.o utils.o)
+SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist_u.o sgx_initenclave_u.o sgx_cryptoall_u.o utils_u.o)
 
 MRENCLAVE    := enclave_mapreduce
-TRUSTEDOBJS  := $(addprefix $(OBJDIR)/, $(MRENCLAVE)_t.o $(MRENCLAVE).o enclaved_mapper.o enclaved_reducer.o worker_protocol.o)
+TRUSTEDOBJS  := $(addprefix $(OBJDIR)/, $(MRENCLAVE)_t.o $(MRENCLAVE).o enclaved_mapper.o enclaved_reducer.o worker_protocol.o sgx_cryptoall_t.o)
 
 App_IncDirs  := src $(SCBRSRCDIR) $(SGX_SDK)/include $(SGXCOMMONDIR)
 App_Include  := $(addprefix -I, $(App_IncDirs))
@@ -64,7 +64,7 @@ Common_C_Cpp_Flags := $(SGX_COMMON_CFLAGS) -nostdinc -fvisibility=hidden \
                       -fpie -fstack-protector -fno-builtin-printf
 Enclave_C_Flags   := -Wno-implicit-function-declaration -std=c11 \
                      $(Common_C_Cpp_Flags)
-Enclave_Cpp_Flags := $(Common_C_Cpp_Flags) -I$(SGX_SDK)/include/stlport -std=c++11 -nostdinc++
+Enclave_Cpp_Flags := $(Common_C_Cpp_Flags) -I$(SGX_SDK)/include/stlport -std=c++11 -nostdinc++ -DENCLAVED
 
 Trusted_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib \
     -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) -L$(LUADIR)/bin \
@@ -82,52 +82,56 @@ client : $(addprefix $(OBJDIR)/, client_protocol.o sgx_cryptoall.o utils.o)
 worker : $(SGXCOMOBJS) $(OBJDIR)/$(MRENCLAVE)_u.o $(OBJDIR)/ocalls.o
 $(TARGETS): $(SCBROBJS) 
 $(TARGETS): % : $(OBJDIR)/%.o | $(BINDIR)
-	@$(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags)
 	@echo -e "LINK\t\t=>\t$@"
+	@$(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags)
 
 $(OBJDIR)/worker.o : $(SRCDIR)/$(MRENCLAVE)_u.c $(SGXCOMOBJS)
 $(SCBROBJS) : $(OBJDIR)/%.o : $(SCBRSRCDIR)/%.cpp | $(OBJDIR)
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
 	@echo -e "CXX\t\t<=\t$<"
+	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
 
-$(SGXCOMOBJS) : $(OBJDIR)/%.o : $(SGXCOMMONDIR)/%.cpp
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
+$(SGXCOMOBJS) : $(OBJDIR)/%_u.o : $(SGXCOMMONDIR)/%.cpp
 	@echo -e "CXX\t\t<=\t$<"
+	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
 
 $(OBJDIR)/$(MRENCLAVE)_u.o : $(SRCDIR)/$(MRENCLAVE)_u.c
 $(SRCDIR)/$(MRENCLAVE)_u.c : %_u.c : %.edl $(SGX_EDGER8R)
-	@cd $(dir $@) && $(SGX_EDGER8R) --untrusted ../$< --search-path ../$(dir $<) --search-path $(SGX_SDK)/include
 	@echo -e "EDGER (App)\t=>\t$@"
+	@cd $(dir $@) && $(SGX_EDGER8R) --untrusted ../$< --search-path ../$(dir $<) --search-path $(SGX_SDK)/include
 
 $(OBJDIR)/$(MRENCLAVE)_t.o : $(SRCDIR)/$(MRENCLAVE)_t.c
 $(SRCDIR)/$(MRENCLAVE)_t.c : $(SRCDIR)/$(MRENCLAVE).edl $(SGX_EDGER8R)
-	@cd $(dir $@) && $(SGX_EDGER8R) --trusted ../$< --search-path ../$(dir $<) --search-path $(SGX_SDK)/include
 	@echo -e "EDGER (Enclave)\t=>\t$@" 
+	@cd $(dir $@) && $(SGX_EDGER8R) --trusted ../$< --search-path ../$(dir $<) --search-path $(SGX_SDK)/include
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp | $(OBJDIR)
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
 	@echo -e "CXX\t\t<=\t$<"
+	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.c | $(OBJDIR)
-	@$(CC) -c $< -o $@ $(App_Include) $(App_C_Flags)
 	@echo -e "CC\t\t<=\t$<"
+	@$(CC) -c $< -o $@ $(App_Include) $(App_C_Flags)
 
 ############## TRUSTED #########################################################
 $(filter-out %_t.o, $(TRUSTEDOBJS)) : $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
-	@$(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags)
 	@echo -e "CXX (Enclave)\t<=\t" $<
+	@$(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags)
+
+$(OBJDIR)/%_t.o : $(SGXCOMMONDIR)/%.cpp
+	@echo -e "CXX (Enclave)\t<=\t" $<
+	@$(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags)
 
 $(OBJDIR)/$(MRENCLAVE)_t.o : $(SRCDIR)/$(MRENCLAVE)_t.c
-	@$(CC) -c $< -o $@ $(Enclave_Include) $(Enclave_C_Flags)
 	@echo -e "CC (Enclave)\t<=\t$<"
+	$(CC) -c $< -o $@ $(Enclave_Include) $(Enclave_C_Flags)
 
 $(BINDIR)/$(MRENCLAVE).signed.so : %.signed.so : %.so
-	@$(SGX_ENCLAVE_SIGNER) sign -enclave $< -config $(SRCDIR)/$(MRENCLAVE).config.xml -out $@ -key $(SRCDIR)/private_key.pem
 	@echo -e "SIGN (Enclave)\t=>\t$@"
+	@$(SGX_ENCLAVE_SIGNER) sign -enclave $< -config $(SRCDIR)/$(MRENCLAVE).config.xml -out $@ -key $(SRCDIR)/private_key.pem
 
 $(BINDIR)/$(MRENCLAVE).so : $(TRUSTEDOBJS) $(LUADIR)/bin/libluasgx.a
-	@$(CXX) $(filter-out %.a,$^) -o $@ $(Trusted_Link_Flags)
 	@echo -e "LINK (Enclave)\t=>\t$(filter-out %.a,$^)"
+	@$(CXX) $(filter-out %.a,$^) -o $@ $(Trusted_Link_Flags)
 
 $(LUADIR)/bin/libluasgx.a :
 	@$(MAKE) -C $(LUADIR)
@@ -144,3 +148,4 @@ $(OBJDIR):
 clean:
 	@rm -rf $(BINDIR) $(OBJDIR) $(SRCDIR)/$(MRENCLAVE)_{t,u}.{c,h}
 	@echo -e "Cleaned $(BINDIR) $(OBJDIR)"
+
