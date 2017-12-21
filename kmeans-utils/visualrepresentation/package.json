@@ -1,0 +1,9 @@
+{
+  "name": "representation",
+  "version": "1.0.0",
+  "description": "Visual representation for k-means",
+  "dependencies": {
+    "express": "^4.14.0",
+    "lodash": "^4.16.2"
+  }
+}
