@@ -29,9 +29,16 @@ Refer to the paper to get more information.
 
 [More info](https://arxiv.org/abs/1705.05684)
 
+If the three repositories bellow are cloned in a common root, relative paths should already be correctly configured. Otherwise, fixes must be made in the Makefiles.
 **Source code:**
 ```
-git clone git@gitlab.securecloud.works:rafael.pires/mapreduce.git
+$ git clone https://gitlab.securecloud.works/rafael.pires/mapreduce.git
+$ git clone https://gitlab.securecloud.works/rafael.pires/scbr.git
+```
+**Dependency:**
+```
+$ git clone https://gitlab.securecloud.works/rafael.pires/sgx_common.git
+
 ```
 
 ##### Message interface
