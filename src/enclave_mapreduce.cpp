@@ -162,7 +162,9 @@ void ecall_inputcode( const char *buff, const char *fname ) {
 
 //------------------------------------------------------------------------------
 void ecall_inputdata( const char *buff, size_t len ) {
-    char *recovered = (char*)malloc(len+1);
+    if( len < 16 ) return;
+    len -= 16;
+    char *recovered = (char*)malloc(len+1); // -16 (iv) + 1 (\0)
     if( !recovered ) {
         ocall_outputerror("Unable to allocate memory");
         return;
@@ -172,10 +174,12 @@ void ecall_inputdata( const char *buff, size_t len ) {
     recovered[len] = 0;
     if( is_cipher((const uint8_t*)buff,len) ) {
         uint8_t key[16], iv[16];
-        memset(key,0,16); memset(iv,0,16);
-        key[0] = 'a'; key[15] = '5';
-        iv[0] = 'x'; iv[15]= '?';
-        decrypt_aes(AES128,(const uint8_t*)buff,(uint8_t*)recovered,len,key,iv);
+        const char *k = "_header_key_";
+        memset(key,0,16); 
+        memcpy(key,k,strlen(k));
+        memcpy(iv,buff,16);
+        decrypt_aes( AES128,(const uint8_t*)buff+16,(uint8_t*)recovered, len,
+                     key,iv );
         data = recovered;
     } else {
         memcpy(recovered,buff,len);
@@ -220,7 +224,7 @@ void ecall_inputdata( const char *buff, size_t len ) {
         config.writethrough = true;
         reducer.income_data( t, data+2, len-2 );
     } else {
-        ocall_outputerror("Unidentified message");
+        printf("Unidentified message: '%s'", Crypto::printable(std::string(recovered,len)));
     }
     }
 getout:

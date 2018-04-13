@@ -12,12 +12,13 @@
 #include <enclave_mapreduce_u.h>
 #include <sgx_initenclave.h>
 #include <libgen.h>
-#include <zhelpers.hpp>
+#include <zhelpers.h>
 #include <fstream>
 #include <argp.h>
 #include <sgx_cryptoall.h>
 #include <communication_zmq.h>
 #include <mrprotocol.h>
+#include <sgx_utils_rp.h>
 
 //------------------------------------------------------------------------------
 /* Global EID shared by multiple threads */
@@ -30,7 +31,9 @@ size_t countoutput = 0;
 void ocall_outputdata( const char *header, size_t hsz, 
                        const char *payload, size_t psz, size_t luavm ) {
     countoutput += hsz + psz;
-    Message m(true, std::string(header,hsz), std::string(payload,psz) );
+    std::string h(header,hsz), p(payload,psz);
+    Message m(true, h, p);
+
     if( global_pipe ) global_pipe->send( m );
     if( luamemstats.is_open() ) {
         static int last = 0;
@@ -130,13 +133,7 @@ int SGX_CDECL main( int argc, char **argv ) {
 
 #ifndef NONENCLAVE
     /* Changing dir to where the executable is.*/
-    char absolutePath [MAX_PATH];
-    char *ptr = NULL;
-
-    ptr = realpath(dirname(argv[0]),absolutePath);
-
-    if( chdir(absolutePath) != 0)
-            abort();
+    change_dir( argv[0] ); 
 
     /* Initialize the enclave */
     if(initialize_enclave( global_eid,
@@ -152,13 +149,11 @@ int SGX_CDECL main( int argc, char **argv ) {
 
     zmq::context_t context(1);
     Communication< zmq::socket_t > pipe( context, args.address, args.id, false);
-    //WorkerProtocol protocol( args.encrypt, args.id, pipe );
     global_pipe = &pipe;
 
     ecall_init( global_eid, args.id.c_str(), args.encrypt );
 
     // Get respective publications
-    //protocol.init();
     while(1) {
         bool rc;
         do {
@@ -169,7 +164,9 @@ int SGX_CDECL main( int argc, char **argv ) {
                 std::string payload = s_recv(pipe.socket());
 
                 if( payload.size() ) {
-                    ecall_inputdata( global_eid, payload.c_str(), payload.size() );
+                    ecall_inputdata( global_eid, payload.c_str()+32, payload.size()-32 );
+                    // +32 because a SHA256 of subscription is
+                    // sent along with the publication
 
                     countinput += payload.size();
                     if( payload.size() == 3 ) {

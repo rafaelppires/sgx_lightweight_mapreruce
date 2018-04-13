@@ -14,8 +14,7 @@ public:
     void initialsub(); 
     void startsession( std::string s );
     void outputpair( const char *dst, const char *key, const char *value ); 
-    void actual_output( char *buff, size_t len,
-                        const std::string &header, const std::string &payload);
+    void actual_output( std::string &header, std::string &payload);
 
     void setmap( const std::string &id, bool enc ) {
         id_ = id;

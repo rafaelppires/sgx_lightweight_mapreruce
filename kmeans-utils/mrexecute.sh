@@ -1,10 +1,10 @@
 #!/bin/bash
-SCBR=/home/securecloud/code/scbr/sgx/enclave_CBR_Enclave_Filter/scbr
+SCBR=../../scbr/bin/scbr
 ADDRESS=localhost:5555
-WORKER=/home/securecloud/code/mapreduce/bin/worker
-CLIENT=/home/securecloud/code/mapreduce/bin/client
-MAPPER=/home/securecloud/code/mapreduce/kmeans_map.lua
-REDUCER=/home/securecloud/code/mapreduce/kmeans_reduce.lua
+WORKER=../bin/worker
+CLIENT=../bin/client
+MAPPER=kmeans_map.lua
+REDUCER=kmeans_reduce.lua
 
 if [ "$#" -ne 4 ]; then
 	echo "Usage: sh [#MAPPERS] [#REDUCERS] [CENTERS] [DATAPOINTS]"
@@ -13,6 +13,7 @@ fi
 
 killall -2 scbr worker client
 $SCBR &
+sleep 3
 for mnum in $(seq 0 $(expr $1 - 1)); do
 	$WORKER -e -m $mnum -p $ADDRESS &
 done

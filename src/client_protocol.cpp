@@ -3,6 +3,7 @@
 #include <sstream>
 #include <sgx_cryptoall.h>
 
+static std::string password = "_header_key_";
 //------------------------------------------------------------------------------
 void ClientProtocol::init() {
     generatessid();
@@ -16,8 +17,8 @@ void ClientProtocol::init() {
     std::string header  = pubheader(kv), 
                 payload = std::to_string(sid_);
     if( encrypt_ ) { 
-        Crypto::encrypt_aes_inline(header);
-        Crypto::encrypt_aes_inline(payload);
+        Crypto::encrypt_aes_inline(password, header);
+        Crypto::encrypt_aes_inline(password, payload);
     }
     Message sidpub( true, header, payload );
     pipe_.send( sidpub );
@@ -28,7 +29,7 @@ void ClientProtocol::init() {
 
     header = subheader(id_,kv);
     if( encrypt_ ) { 
-        Crypto::encrypt_aes_inline(header);
+        Crypto::encrypt_aes_inline(password, header);
     }
     Message mjob_req( true, header, "" );
     pipe_.send( mjob_req );
@@ -37,7 +38,7 @@ void ClientProtocol::init() {
     kv["type"] = std::to_string(RESULT_DATATYPE);
     header = subheader(id_,kv);
     if( encrypt_ ) { 
-        Crypto::encrypt_aes_inline(header);
+        Crypto::encrypt_aes_inline(password, header);
     }
     Message mresult_req( true, header, "" );
     pipe_.send( mresult_req );
@@ -63,7 +64,7 @@ void ClientProtocol::extractwt( const std::string &s, std::string &w, int &t ) {
 double diagonal_range_ = 0;
 //------------------------------------------------------------------------------
 bool ClientProtocol::handle_msg( const std::string &message ) {
-    std::string msg = encrypt_ ? Crypto::decrypt_aes( message ) : message;
+    std::string msg = encrypt_ ? Crypto::decrypt_aes( password,message ) : message;
 
     bool ret = false;
     StringVector splited; char sep[] = {pload_sep, 0};
@@ -85,7 +86,7 @@ bool ClientProtocol::handle_msg( const std::string &message ) {
             }
             // fwd in behalf of workers their subscriptions for code and data
             if( encrypt_ ) {
-                Crypto::encrypt_aes_inline(splited[i]); 
+                Crypto::encrypt_aes_inline(password,splited[i]); 
             }
             Message m( true, splited[i], "" );
             pipe_.send( m );
@@ -253,8 +254,8 @@ void ClientProtocol::push_data( MsgType type, const std::string &fname,
     std::string header  = pubheader(kv), 
                 payload = plheader.str() + content;
     if( encrypt_ ) { 
-        Crypto::encrypt_aes_inline(header);
-        Crypto::encrypt_aes_inline(payload);
+        Crypto::encrypt_aes_inline(password,header);
+        Crypto::encrypt_aes_inline(password,payload);
     }
     Message m( true, header, payload );
     pipe_.send( m );
@@ -280,8 +281,8 @@ void ClientProtocol::senddata_mappers( const StringVector &lines,
         header = pubheader(psheader);
         payload = plheader + lines[i];
         if( encrypt_ ) { 
-            Crypto::encrypt_aes_inline(header);
-            Crypto::encrypt_aes_inline(payload);
+            Crypto::encrypt_aes_inline(password,header);
+            Crypto::encrypt_aes_inline(password,payload);
         }
         Message m( true, header, payload );
         sz += header.size() + payload.size();
@@ -298,8 +299,8 @@ void ClientProtocol::senddata_mappers( const StringVector &lines,
         header  = pubheader(psheader);
         payload = empty.str();
         if( encrypt_ ) {
-            Crypto::encrypt_aes_inline(header);
-            Crypto::encrypt_aes_inline(payload);
+            Crypto::encrypt_aes_inline(password,header);
+            Crypto::encrypt_aes_inline(password,payload);
         }
         Message msg( true, header, payload );
         pipe_.send(msg);

@@ -10,7 +10,7 @@
 #include <message.h>
 #include <client_protocol.h>
 #include <mrprotocol.h>
-#include <zhelpers.hpp>
+#include <zhelpers.h>
 #include <argp.h>
 
 //------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ int main( int argc, char **argv ) {
             bool requires_action = false; 
             if( (rc = pipe.socket().recv( &zmsg, ZMQ_DONTWAIT)) ) {
                 // ignore 0 msg
-                requires_action = protocol.handle_msg( s_recv(pipe.socket()) );
+                requires_action = protocol.handle_msg( s_recv(pipe.socket()).substr(32) );
             }
             if( requires_action ) {
                 counter = 1000;

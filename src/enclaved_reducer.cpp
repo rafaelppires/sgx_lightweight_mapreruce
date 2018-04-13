@@ -34,7 +34,9 @@ void EnclavedReducer::income_data( MsgType type, const char *str, size_t len ) {
     //printf("%s\n", str);
     const char *k = strchr( str, pload_sep ), 
                *err = "Protocol Error\n";
-    if( k == NULL ) { printf("Invalid format!\n"); return; }
+    if( k == NULL ) { printf("Invalid format!\n"); 
+abort();
+return; }
 
     std::string key = std::string( str, k-str );
     std::string value( k+1 );

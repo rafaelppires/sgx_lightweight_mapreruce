@@ -15,15 +15,16 @@ BINDIR       := bin
 OBJDIR       := obj
 SRCDIR       := src
 LUADIR       := ../enclaved_lua/lua-sgx
-SCBRSRCDIR   := ../scbr/src
+SCBRSRCDIR   := ../scbr
+SCBRLIB      := lib/libscbr.a
 SGXCOMMONDIR := ../sgx_common
 SCBROBJS     := $(addprefix $(OBJDIR)/, message.o communication_zmq.o)
-SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist_u.o sgx_initenclave_u.o sgx_cryptoall_u.o utils_u.o)
+SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist_u.o sgx_initenclave_u.o sgx_cryptoall_u.o )
 
 MRENCLAVE    := enclave_mapreduce
 TRUSTEDOBJS  := $(addprefix $(OBJDIR)/, $(MRENCLAVE)_t.o $(MRENCLAVE).o enclaved_mapper.o enclaved_reducer.o worker_protocol.o sgx_cryptoall_t.o)
 
-App_IncDirs  := src $(SCBRSRCDIR) $(SGX_SDK)/include $(SGXCOMMONDIR)
+App_IncDirs  := src $(SCBRSRCDIR)/src/user-library/include $(SGX_SDK)/include $(SGXCOMMONDIR)
 App_Include  := $(addprefix -I, $(App_IncDirs))
 
 Enclave_IncDirs := $(LUADIR)/src $(SGX_SDK)/include/tlibc \
@@ -78,18 +79,16 @@ Trusted_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib \
 
 all: $(TARGETS) $(BINDIR)/$(MRENCLAVE).signed.so
 
-client : $(addprefix $(OBJDIR)/, client_protocol.o sgx_cryptoall.o utils.o)
+client : $(addprefix $(OBJDIR)/, client_protocol.o) $(SCBRSRCDIR)/$(SCBRLIB)
 worker : $(SGXCOMOBJS) $(OBJDIR)/$(MRENCLAVE)_u.o $(OBJDIR)/ocalls.o
-$(TARGETS): $(SCBROBJS) 
 $(TARGETS): % : $(OBJDIR)/%.o | $(BINDIR)
 	@echo -e "LINK\t\t=>\t$@"
-	@$(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags)
+	@$(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags) $(SCBRSRCDIR)/$(SCBRLIB)
+
+$(SCBRSRCDIR)/$(SCBRLIB) :
+	@$(MAKE) $(SCBRLIB) -C $(SCBRSRCDIR)
 
 $(OBJDIR)/worker.o : $(SRCDIR)/$(MRENCLAVE)_u.c $(SGXCOMOBJS)
-$(SCBROBJS) : $(OBJDIR)/%.o : $(SCBRSRCDIR)/%.cpp | $(OBJDIR)
-	@echo -e "CXX\t\t<=\t$<"
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
-
 $(SGXCOMOBJS) : $(OBJDIR)/%_u.o : $(SGXCOMMONDIR)/%.cpp
 	@echo -e "CXX\t\t<=\t$<"
 	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
