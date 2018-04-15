@@ -11,9 +11,10 @@ if [ "$#" -ne 4 ]; then
 	exit
 fi
 
-killall -2 scbr worker client
+killall -9 scbr worker client
+sleep 2
 $SCBR &
-sleep 3
+sleep 5
 for mnum in $(seq 0 $(expr $1 - 1)); do
 	$WORKER -e -m $mnum -p $ADDRESS &
 done
@@ -21,6 +22,8 @@ done
 for rnum in $(seq 0 $(expr $2 - 1)); do
 	$WORKER -e -r $rnum -p $ADDRESS &
 done
+sleep 3
 
-$CLIENT -e -m $MAPPER -r $REDUCER -p $ADDRESS -d $4 -k $3 &
+$CLIENT -e -m $MAPPER -r $REDUCER -p $ADDRESS -d $4 -k $3
+killall -9 scbr worker
 

@@ -65,13 +65,10 @@ void EnclavedMapper::finish_round() {
     flush_output();
 
     char dst[10];
-    printf("** ");
     for( int i = 0; i < reducer_count_; ++i ) {
         snprintf( dst, sizeof(dst), "%d", i );
         outputpair( dst, "", "" );
-        printf("<%s> ", dst);
     }
-    printf("**\n");
 
     state_ = WAIT_NEXT;
 }

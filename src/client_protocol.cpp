@@ -124,6 +124,7 @@ bool ClientProtocol::handle_msg( const std::string &message ) {
                     std::cout << "k-means Threshold reached: " 
                               << (threshold_*diagonal_range_) << "\n";
                     round_stats_.print_summary( "k-means Round stats" );
+                    printf("\n");
                     exit(0); 
                 }
             }

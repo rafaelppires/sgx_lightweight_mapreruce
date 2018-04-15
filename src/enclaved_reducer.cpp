@@ -31,7 +31,7 @@ std::string EnclavedReducer::orderjson( const std::string &key ) {
 
 //------------------------------------------------------------------------------
 void EnclavedReducer::income_data( MsgType type, const char *str, size_t len ) {
-    //printf("%s\n", str);
+    //printf("<%s>\n", str);
     const char *k = strchr( str, pload_sep ), 
                *err = "Protocol Error\n";
     if( k == NULL ) { printf("Invalid format!\n"); 

@@ -171,19 +171,15 @@ void ecall_inputdata( const char *buff, size_t len ) {
     }
 
     const char *data = recovered;
-    recovered[len] = 0;
-    if( is_cipher((const uint8_t*)buff,len) ) {
-        uint8_t key[16], iv[16];
-        const char *k = "_header_key_";
-        memset(key,0,16); 
-        memcpy(key,k,strlen(k));
-        memcpy(iv,buff,16);
-        decrypt_aes( AES128,(const uint8_t*)buff+16,(uint8_t*)recovered, len,
-                     key,iv );
-        data = recovered;
-    } else {
-        memcpy(recovered,buff,len);
-    }
+    recovered[len] = 0; 
+    uint8_t key[16], iv[16];
+    const char *k = "_header_key_";
+    memset(key,0,16); 
+    memcpy(key,k,strlen(k));
+    memcpy(iv,buff,16);
+    decrypt_aes( AES128,(const uint8_t*)buff+16,(uint8_t*)recovered, len,
+            key,iv );
+    data = recovered;
 
     static bool once = true;
     if( once ) {
@@ -196,7 +192,7 @@ void ecall_inputdata( const char *buff, size_t len ) {
     if( len < 2 || data[0] == 0 || data[1] == 0 ) {
         char buff[50];
         snprintf( buff, sizeof(buff), 
-                  "Err msg format %lu %d %d", len, data[0], data[1]);
+                "Err msg format %lu %d %d", len, data[0], data[1]);
         ocall_outputerror(buff);
         goto getout;
     } else if( data == recovered && is_cipher((const uint8_t*)data,len) ) {
@@ -224,7 +220,7 @@ void ecall_inputdata( const char *buff, size_t len ) {
         config.writethrough = true;
         reducer.income_data( t, data+2, len-2 );
     } else {
-        printf("Unidentified message: '%s'", Crypto::printable(std::string(recovered,len)));
+        printf("Unidentified message: %luB '%s'\n",len, Crypto::printable(std::string(recovered,len)).c_str());
     }
     }
 getout:
