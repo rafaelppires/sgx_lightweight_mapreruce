@@ -5,6 +5,8 @@ SGX_MODE       ?= HW
 #SGX_MODE       ?= SIMULATION_MODE
 SGX_PRERELEASE ?= 1
 
+include Makefile.in
+
 CXX                := g++
 SGX_LIBRARY_PATH   := $(SGX_SDK)/lib64
 SGX_ENCLAVE_SIGNER := $(SGX_SDK)/bin/x64/sgx_sign
@@ -17,7 +19,7 @@ SRCDIR       := src
 LUADIR       := ../enclaved_lua/lua-sgx
 SCBRSRCDIR   := ../scbr
 SCBRLIB      := lib/libscbr.a
-SGXCOMMONDIR := ../sgx_common
+SGXCOMMONDIR := $(SRCDIR)/sgx_common
 SCBROBJS     := $(addprefix $(OBJDIR)/, message.o communication_zmq.o)
 SGXCOMOBJS   := $(addprefix $(OBJDIR)/, sgx_errlist_u.o sgx_initenclave_u.o sgx_cryptoall_u.o )
 
@@ -28,8 +30,8 @@ App_IncDirs  := src $(SCBRSRCDIR)/src/user-library/include $(SGX_SDK)/include $(
 App_Include  := $(addprefix -I, $(App_IncDirs))
 
 Enclave_IncDirs := $(LUADIR)/src $(SGX_SDK)/include/tlibc \
-                   $(SGX_SDK)/include $(SRCDIR) /usr/include/x86_64-linux-gnu/ \
-                   $(SGXCOMMONDIR)
+                   $(SGX_SDK)/include $(SRCDIR) $(SGXCOMMONDIR) \
+                   $(SGXCOMMONDIR)/enclave_include
 Enclave_Include := $(addprefix -I, $(Enclave_IncDirs))
 
 SGX_COMMON_CFLAGS := -m64
@@ -71,7 +73,7 @@ Trusted_Link_Flags := $(SGX_COMMON_CFLAGS) -Wl,--no-undefined -nostdlib \
     -nodefaultlibs -nostartfiles -L$(SGX_LIBRARY_PATH) -L$(LUADIR)/bin \
     -Wl,--whole-archive -l$(Trts_Library_Name) -Wl,--no-whole-archive \
     -Wl,--start-group -lsgx_tstdc -lsgx_tstdcxx -lsgx_tcrypto \
-    -l$(Service_Library_Name) -lsgx_tsetjmp -lluasgx -Wl,--end-group \
+    -l$(Service_Library_Name) -lluasgx -Wl,--end-group \
     -Wl,-Bstatic -Wl,-Bsymbolic -Wl,--no-undefined \
     -Wl,-pie,-eenclave_entry -Wl,--export-dynamic  \
     -Wl,--defsym,__ImageBase=0 \
@@ -82,16 +84,14 @@ all: $(TARGETS) $(BINDIR)/$(MRENCLAVE).signed.so
 client : $(addprefix $(OBJDIR)/, client_protocol.o) $(SCBRSRCDIR)/$(SCBRLIB)
 worker : $(SGXCOMOBJS) $(OBJDIR)/$(MRENCLAVE)_u.o $(OBJDIR)/ocalls.o
 $(TARGETS): % : $(OBJDIR)/%.o | $(BINDIR)
-	@echo -e "LINK\t\t=>\t$@"
-	@$(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags) $(SCBRSRCDIR)/$(SCBRLIB)
+	@$(call run_and_test, $(CXX) $^ -o $(BINDIR)/$@ $(App_Link_Flags) $(SCBRSRCDIR)/$(SCBRLIB), "LINK")
 
 $(SCBRSRCDIR)/$(SCBRLIB) :
 	@$(MAKE) $(SCBRLIB) -C $(SCBRSRCDIR)
 
 $(OBJDIR)/worker.o : $(SRCDIR)/$(MRENCLAVE)_u.c $(SGXCOMOBJS)
 $(SGXCOMOBJS) : $(OBJDIR)/%_u.o : $(SGXCOMMONDIR)/%.cpp
-	@echo -e "CXX\t\t<=\t$<"
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
+	@$(call run_and_test, $(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags), "CXX")
 
 $(OBJDIR)/$(MRENCLAVE)_u.o : $(SRCDIR)/$(MRENCLAVE)_u.c
 $(SRCDIR)/$(MRENCLAVE)_u.c : %_u.c : %.edl $(SGX_EDGER8R)
@@ -104,33 +104,27 @@ $(SRCDIR)/$(MRENCLAVE)_t.c : $(SRCDIR)/$(MRENCLAVE).edl $(SGX_EDGER8R)
 	@cd $(dir $@) && $(SGX_EDGER8R) --trusted ../$< --search-path ../$(dir $<) --search-path $(SGX_SDK)/include
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp | $(OBJDIR)
-	@echo -e "CXX\t\t<=\t$<"
-	@$(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags)
+	@$(call run_and_test, $(CXX) -c $< -o $@ $(App_Include) $(App_Cpp_Flags), "CXX")
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.c | $(OBJDIR)
-	@echo -e "CC\t\t<=\t$<"
-	@$(CC) -c $< -o $@ $(App_Include) $(App_C_Flags)
+	@$(call run_and_test, $(CC) -c $< -o $@ $(App_Include) $(App_C_Flags), "CC")
 
 ############## TRUSTED #########################################################
 $(filter-out %_t.o, $(TRUSTEDOBJS)) : $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
-	@echo -e "CXX (Enclave)\t<=\t" $<
-	@$(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags)
+	@$(call run_and_test, $(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags), "CXX SGX")
 
 $(OBJDIR)/%_t.o : $(SGXCOMMONDIR)/%.cpp
-	@echo -e "CXX (Enclave)\t<=\t" $<
-	@$(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags)
+	@$(call run_and_test, $(CXX) -c $< -o $@ $(Enclave_Include) $(Enclave_Cpp_Flags), "CXX SGX")
 
 $(OBJDIR)/$(MRENCLAVE)_t.o : $(SRCDIR)/$(MRENCLAVE)_t.c
-	@echo -e "CC (Enclave)\t<=\t$<"
-	$(CC) -c $< -o $@ $(Enclave_Include) $(Enclave_C_Flags)
+	@$(call run_and_test, $(CC) -c $< -o $@ $(Enclave_Include) $(Enclave_C_Flags), "CC SGX")
 
 $(BINDIR)/$(MRENCLAVE).signed.so : %.signed.so : %.so
 	@echo -e "SIGN (Enclave)\t=>\t$@"
 	@$(SGX_ENCLAVE_SIGNER) sign -enclave $< -config $(SRCDIR)/$(MRENCLAVE).config.xml -out $@ -key $(SRCDIR)/private_key.pem
 
 $(BINDIR)/$(MRENCLAVE).so : $(TRUSTEDOBJS) $(LUADIR)/bin/libluasgx.a
-	@echo -e "LINK (Enclave)\t=>\t$(filter-out %.a,$^)"
-	@$(CXX) $(filter-out %.a,$^) -o $@ $(Trusted_Link_Flags)
+	@$(call run_and_test, $(CXX) $(filter-out %.a,$^) -o $@ $(Trusted_Link_Flags), "LINK SGX")
 
 $(LUADIR)/bin/libluasgx.a :
 	@$(MAKE) -C $(LUADIR)
